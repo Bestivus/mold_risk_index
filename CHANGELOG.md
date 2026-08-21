@@ -1,3 +1,7 @@
+# Unreleased
+
+Fix incorrect risk calculation when the configured temperature sensor reports in Fahrenheit. The risk formulas are calibrated for Celsius input; Fahrenheit values are now converted before calculation. [#12](https://github.com/Strixx76/mold_risk_index/issues/12)
+
 # 1.1.0 (2023-11-06)
 
 Added translations for de, sk and sv
