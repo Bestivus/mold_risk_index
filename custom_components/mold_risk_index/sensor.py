@@ -13,6 +13,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.const import (
+    ATTR_UNIT_OF_MEASUREMENT,
     PERCENTAGE,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
@@ -138,12 +139,17 @@ class MoldRiskCalculator:
 
         if entity == self._temp_entity_id:
             if new_state is not None:
-                unit = state.attributes.get("unit_of_measurement")
-                if unit == UnitOfTemperature.FAHRENHEIT:
+                unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
+                # Formulas below are calibrated for Celsius input. Convert
+                # any other unit HA recognizes for temperature; if no unit
+                # is set (or it's unrecognized), fall back to treating the
+                # value as already being Celsius, preserving prior behavior.
+                if (
+                    unit in TemperatureConverter.VALID_UNITS
+                    and unit != UnitOfTemperature.CELSIUS
+                ):
                     new_state = TemperatureConverter.convert(
-                        new_state,
-                        UnitOfTemperature.FAHRENHEIT,
-                        UnitOfTemperature.CELSIUS,
+                        new_state, unit, UnitOfTemperature.CELSIUS
                     )
             if new_state == self.temperature:
                 return
