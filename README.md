@@ -1,3 +1,13 @@
+> ### ⚠️ This is a maintained fork that fixes a unit-conversion bug in the original repository
+>
+> The upstream integration's risk formulas are calibrated for temperature input in **Celsius**, but the code never checks or converts the unit of the configured temperature sensor — it just reads the raw number. If your temperature sensor reports in **Fahrenheit** (the HA default in the US) or Kelvin, this causes a silent failure: any reading above 50 (treated as if it were 50°C, which is ~122°F) causes the risk calculation to return a limit of 100%, meaning the risk index can never register — regardless of actual humidity. In practice, this means the integration reports **no mold risk, ever**, for most of the year in any climate where the space in question is above 50°F most of the time.
+>
+> This was reported upstream in [issue #12](https://github.com/Strixx76/mold_risk_index/issues/12), but the maintainer wasn't interested in merging a fix. Rather than leave it broken, this fork exists to fix it and stay maintained independently.
+>
+> The fix detects the configured temperature sensor's `unit_of_measurement` and automatically converts Celsius, Fahrenheit, or Kelvin input to Celsius before running the calculation, with a safe fallback to the original assume-Celsius behavior if no unit is set. It was built with the help of AI (Claude, via Anthropic), and verified against live sensor data — see the [CHANGELOG](./CHANGELOG.md) for details.
+>
+> If you're using a Celsius-native temperature sensor, this fork behaves identically to upstream.
+
 # Mold Risk Index Integration
 
 [![HACS][hacsbadge]][hacslink]
