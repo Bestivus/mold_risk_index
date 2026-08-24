@@ -79,6 +79,6 @@ The `Risk Index` sensor can be used for tracking historical data.
 [mybadge]: https://my.home-assistant.io/badges/config_flow_start.svg
 [mylink]: https://my.home-assistant.io/redirect/config_flow_start/?domain=mold_risk_index
 [mybadgehacs]: https://my.home-assistant.io/badges/hacs_repository.svg
-[mylinkhacs]: https://my.home-assistant.io/redirect/hacs_repository/?owner=Strixx76&repository=mold_risk_index
+[mylinkhacs]: https://my.home-assistant.io/redirect/hacs_repository/?owner=Bestivus&repository=mold_risk_index
 [coffeelink]: https://www.buymeacoffee.com/76strixx
 [coffeebadge]: https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png

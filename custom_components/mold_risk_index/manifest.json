@@ -1,12 +1,12 @@
 {
   "domain": "mold_risk_index",
   "name": "Mold Risk Index",
-  "codeowners": ["@Strixx76"],  
+  "codeowners": ["@Bestivus"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/Strixx76/mold_risk_index",
-  "iot_class": "calculated",  
-  "issue_tracker": "https://github.com/Strixx76/mold_risk_index/issues",
+  "documentation": "https://github.com/Bestivus/mold_risk_index",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/Bestivus/mold_risk_index/issues",
   "requirements": [],
   "version": "1.1.3"
 }
