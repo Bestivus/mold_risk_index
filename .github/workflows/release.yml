@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - custom_components/mold_risk_index/manifest.json
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create GitHub release for manifest version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(jq -r .version custom_components/mold_risk_index/manifest.json)
+          if gh release view "$version" >/dev/null 2>&1; then
+            echo "Release $version already exists, nothing to do."
+            exit 0
+          fi
+          notes=$(awk '/^# /{n++} n==1{print} n==2{exit}' CHANGELOG.md | tail -n +2)
+          gh release create "$version" --title "$version" --notes "$notes"
