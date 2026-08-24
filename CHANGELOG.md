@@ -1,3 +1,7 @@
+# 1.1.3 (2026-08-24)
+
+Restrict the temperature and humidity sensor pickers in the setup/options flow to entities that declare the matching `device_class` (`temperature` / `humidity`). Previously any `sensor.*` entity could be selected for either field, so it was possible to accidentally configure, say, a humidity sensor as the temperature input with no warning.
+
 # 1.1.2 (2026-08-24)
 
 Require a recognized temperature unit (Celsius, Fahrenheit, or Kelvin) on the configured temperature sensor. Previously, a sensor with no unit set was silently assumed to already be Celsius; that assumption could itself produce a wrong risk calculation if the sensor was actually reporting Fahrenheit or Kelvin without declaring it. The risk sensors now go to `unknown` and log a warning in that case, rather than guessing.

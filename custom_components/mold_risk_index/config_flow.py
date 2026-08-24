@@ -6,6 +6,7 @@ from typing import Any, cast
 
 import voluptuous as vol
 
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import CONF_NAME
 from homeassistant.helpers import selector
 from homeassistant.helpers.schema_config_entry_flow import (
@@ -24,10 +25,14 @@ from .const import (
 OPTIONS_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_HUM_ID): selector.EntitySelector(
-            selector.EntitySelectorConfig(domain="sensor"),
+            selector.EntitySelectorConfig(
+                domain="sensor", device_class=SensorDeviceClass.HUMIDITY
+            ),
         ),
         vol.Required(CONF_TEMP_ID): selector.EntitySelector(
-            selector.EntitySelectorConfig(domain="sensor"),
+            selector.EntitySelectorConfig(
+                domain="sensor", device_class=SensorDeviceClass.TEMPERATURE
+            ),
         ),
     }
 )
