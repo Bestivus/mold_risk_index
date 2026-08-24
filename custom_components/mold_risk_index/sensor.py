@@ -53,7 +53,7 @@ async def async_setup_entry(
     mold_calc.async_update_from_state(temp_entity_id, hass.states.get(temp_entity_id))
     mold_calc.async_update_from_state(hum_entity_id, hass.states.get(hum_entity_id))
 
-    entities: list[MoldRiskBaseSensor] = [
+    limit_entities = [
         MoldRiskLimitSensor(
             hum_entity_id,
             temp_entity_id,
@@ -64,24 +64,26 @@ async def async_setup_entry(
         )
         for level in (1, 2, 3)
     ]
-    entities.append(
-        MoldRiskIndexSensor(
-            hum_entity_id,
-            temp_entity_id,
-            config_entry.title,
-            config_entry.entry_id,
-            mold_calc,
-        )
+    index_entity = MoldRiskIndexSensor(
+        hum_entity_id,
+        temp_entity_id,
+        config_entry.title,
+        config_entry.entry_id,
+        mold_calc,
     )
+    entities: list[MoldRiskBaseSensor] = [*limit_entities, index_entity]
     async_add_entities(entities)
 
     @callback
     def _async_source_changed(event: Event) -> None:
-        """ Update the shared calculator once, then refresh every entity. """
-        mold_calc.async_update_from_state(
-            event.data["entity_id"], event.data["new_state"]
-        )
-        for entity in entities:
+        """ Update the shared calculator once, then refresh affected entities. """
+        entity_id = event.data["entity_id"]
+        mold_calc.async_update_from_state(entity_id, event.data["new_state"])
+        # Level N Limit is a pure function of temperature alone (humidity
+        # never appears in calc_limit_1/2/3), so a humidity-only change
+        # cannot affect it - only Current Index depends on both.
+        refresh_targets = entities if entity_id == temp_entity_id else (index_entity,)
+        for entity in refresh_targets:
             entity.async_refresh_from_calculator()
 
     # Registered once per config entry (not once per entity), so a single
