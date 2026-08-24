@@ -1,3 +1,7 @@
+# 1.2.0 (2026-08-24)
+
+Split the `Limit` sensor into three entities, one per risk level: `Level 1 Limit`, `Level 2 Limit`, and `Level 3 Limit`, each reporting the humidity threshold for that level at the current temperature. Previously only level 1 was a real entity; levels 2 and 3 were only available as attributes on the `Limit` sensor, which meant they couldn't be graphed, tracked in statistics, or used directly in a `state` trigger. The old `Limit` sensor's entity ID is preserved as `Level 1 Limit`, so existing automations referencing it keep working. Also renamed the `Risk Index` sensor to `Current Index` for clarity now that there are multiple level-related entities.
+
 # 1.1.3 (2026-08-24)
 
 Restrict the temperature and humidity sensor pickers in the setup/options flow to entities that declare the matching `device_class` (`temperature` / `humidity`). Previously any `sensor.*` entity could be selected for either field, so it was possible to accidentally configure, say, a humidity sensor as the temperature input with no warning.

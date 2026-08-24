@@ -14,9 +14,9 @@ For spaces that are heated and where the risk of mold is close to cold surfaces 
 >_If you want to add more sensors, just go through the configuration steps again._
 
 ## Usage
-Use the `Limit` sensor to set the level on a dehumidifier, or compare it with the actual humidity and start a dehumidifier when the humidity is getting close the limit.</p>
+Use the `Level 1/2/3 Limit` sensors to set the level on a dehumidifier, or compare one with the actual humidity and start a dehumidifier when getting close to that level's limit.
 
-The `Risk Index` sensor can be used for tracking historical data.
+The `Current Index` sensor reports the current risk level and can be used for tracking historical data.
 
 - At level 1 mold will start grow after 8 weeks or more.
 - At level 2 mold will start grow in 4 to 8 weeks.

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from math import exp
 import logging
-from typing import Any
 
 from homeassistant.components.sensor import (
     SensorEntity,
@@ -49,24 +48,27 @@ async def async_setup_entry(
     )
     mold_calc = MoldRiskCalculator(hum_entity_id, temp_entity_id)
 
-    async_add_entities(
-        [
-            MoldRiskLimitSensor(
-                hum_entity_id,
-                temp_entity_id,
-                config_entry.title,
-                config_entry.entry_id,
-                mold_calc,
-            ),
-            MoldRiskIndexSensor(
-                hum_entity_id,
-                temp_entity_id,
-                config_entry.title,
-                config_entry.entry_id,
-                mold_calc,
-            ),
-        ]
+    entities: list[SensorEntity] = [
+        MoldRiskLimitSensor(
+            hum_entity_id,
+            temp_entity_id,
+            config_entry.title,
+            config_entry.entry_id,
+            mold_calc,
+            level,
+        )
+        for level in (1, 2, 3)
+    ]
+    entities.append(
+        MoldRiskIndexSensor(
+            hum_entity_id,
+            temp_entity_id,
+            config_entry.title,
+            config_entry.entry_id,
+            mold_calc,
+        )
     )
+    async_add_entities(entities)
 
 
 class MoldRiskCalculator:
@@ -202,6 +204,14 @@ class MoldRiskCalculator:
         self.humidity_limit_level_2 = self.calc_limit_2(self.temperature)
         self.humidity_limit_level_3 = self.calc_limit_3(self.temperature)
 
+    def limit_for_level(self, level: int) -> int | None:
+        """ Return the calculated humidity limit for a risk level (1-3). """
+        return {
+            1: self.humidity_limit_level_1,
+            2: self.humidity_limit_level_2,
+            3: self.humidity_limit_level_3,
+        }[level]
+
     @callback
     def _calc_risk(self) -> None:
         """ Calculate risk. """
@@ -250,72 +260,68 @@ class MoldRiskBaseSensor(SensorEntity):
 
 
 class MoldRiskLimitSensor(MoldRiskBaseSensor):
-    """ Representation of a mold risk limit sensor. """
+    """ Representation of the humidity limit sensor for one risk level. """
     _attr_device_class = SensorDeviceClass.HUMIDITY
     _attr_icon = "mdi:water-percent-alert"
     _attr_native_unit_of_measurement = PERCENTAGE
-    _attr_name = "Limit"
 
-    _limit_level_1: int | None = None
-    _limit_level_2: int | None = None
-    _limit_level_3: int | None = None
+    _limit: int | None = None
+
+    def __init__(
+        self,
+        hum_entity_id: str,
+        temp_entity_id: str,
+        name: str,
+        entry_id: str,
+        mold_calc: MoldRiskCalculator,
+        level: int,
+    ) -> None:
+        """ Initialize the limit sensor for one risk level. """
+        super().__init__(hum_entity_id, temp_entity_id, name, entry_id, mold_calc)
+        self._level = level
+        self._attr_name = f"Level {level} Limit"
 
     async def async_added_to_hass(self) -> None:
         """ Handle added to Hass. """
         state = self.hass.states.get(self._temp_entity_id)
         event = Event("", {"entity_id": self._temp_entity_id, "new_state": state})
         self._async_state_listener(event)
-        
+
         entity_ids = [self._temp_entity_id]
         self.async_on_remove(
             async_track_state_change_event(
                     self.hass, entity_ids, self._async_state_listener
             )
         )
-    
+
     @callback
     def _async_state_listener(self, event: Event) -> None:
         """ Listen for sensor state changes. """
-        updated = False
         self._mold_calc.async_event_receiver(event)
-        
-        if self._mold_calc.humidity_limit_level_1 != self._limit_level_1:
-            self._limit_level_1 = self._mold_calc.humidity_limit_level_1
-            updated = True
-        if self._mold_calc.humidity_limit_level_2 != self._limit_level_2:
-            self._limit_level_2 = self._mold_calc.humidity_limit_level_2
-            updated = True
-        if self._mold_calc.humidity_limit_level_3 != self._limit_level_3:
-            self._limit_level_3 = self._mold_calc.humidity_limit_level_3
-            updated = True
-        
-        if updated:
+        limit = self._mold_calc.limit_for_level(self._level)
+        if limit != self._limit:
+            self._limit = limit
             self.async_write_ha_state()
 
     @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """ Return the state attributes of the sensor. """
-        return {
-            "Level 1 limit": self._limit_level_1,
-            "Level 2 limit": self._limit_level_2,
-            "Level 3 limit": self._limit_level_3,
-        }
-    
-    @property
     def native_value(self) -> int | None:
         """ Return the state of the sensor. """
-        return self._limit_level_1
-    
+        return self._limit
+
     @property
     def unique_id(self) -> str | None:
         """Return a unique ID."""
-        return f"{self._entry_id}-limit"
+        if self._level == 1:
+            # Preserve the unique_id from before per-level entities existed,
+            # so existing entity_ids and automations keep working.
+            return f"{self._entry_id}-limit"
+        return f"{self._entry_id}-limit-{self._level}"
 
 
 class MoldRiskIndexSensor(MoldRiskBaseSensor):
     """ Representation of a mold risk index sensor. """
     _attr_icon = "mdi:alert-outline"
-    _attr_name = "Risk Index"
+    _attr_name = "Current Index"
     
     _risk: int | None = None
 
