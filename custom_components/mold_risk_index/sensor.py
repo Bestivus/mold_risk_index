@@ -177,7 +177,10 @@ class MoldRiskCalculator:
                 new_state = float(state.state)
             except ValueError:
                 _LOGGER.warning(
-                    "Only numerical states are supported for input sensors"
+                    "Sensor %s reported a non-numeric state (%s); "
+                    "only numerical states are supported for input sensors",
+                    entity_id,
+                    state.state,
                 )
                 new_state = None
 
