@@ -10,7 +10,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.const import (
     ATTR_UNIT_OF_MEASUREMENT,
     PERCENTAGE,
@@ -47,8 +47,13 @@ async def async_setup_entry(
         registry, config_entry.options[CONF_TEMP_ID]
     )
     mold_calc = MoldRiskCalculator(hum_entity_id, temp_entity_id)
+    # Prime the calculator with current source states before any entity
+    # exists, so entities can read an already-computed value at construction
+    # instead of each faking its own priming event.
+    mold_calc.async_update_from_state(temp_entity_id, hass.states.get(temp_entity_id))
+    mold_calc.async_update_from_state(hum_entity_id, hass.states.get(hum_entity_id))
 
-    entities: list[SensorEntity] = [
+    entities: list[MoldRiskBaseSensor] = [
         MoldRiskLimitSensor(
             hum_entity_id,
             temp_entity_id,
@@ -70,6 +75,25 @@ async def async_setup_entry(
     )
     async_add_entities(entities)
 
+    @callback
+    def _async_source_changed(event: Event) -> None:
+        """ Update the shared calculator once, then refresh every entity. """
+        mold_calc.async_update_from_state(
+            event.data["entity_id"], event.data["new_state"]
+        )
+        for entity in entities:
+            entity.async_refresh_from_calculator()
+
+    # Registered once per config entry (not once per entity), so a single
+    # source state change is processed exactly once regardless of how many
+    # entities read from the calculator. Tied to the config entry's own
+    # unload rather than any one entity's, since no single entity owns it.
+    config_entry.async_on_unload(
+        async_track_state_change_event(
+            hass, [temp_entity_id, hum_entity_id], _async_source_changed
+        )
+    )
+
 
 class MoldRiskCalculator:
     """ Calculate the limits and risk of mold growth. """
@@ -77,8 +101,7 @@ class MoldRiskCalculator:
         """ Initialize the calculator. """
         self._hum_entity_id = hum_entity_id
         self._temp_entity_id = temp_entity_id
-        
-        self._last_receiver_event: Event | None = None
+
         self.humidity: float | None = None
         self.temperature: float | None = None
         self.risk: int | None = None
@@ -139,15 +162,8 @@ class MoldRiskCalculator:
         return TemperatureConverter.convert(value, unit, UnitOfTemperature.CELSIUS)
 
     @callback
-    def async_event_receiver(self, event: Event,) -> None:
-        """ Receives events about state changes. """
-        if event == self._last_receiver_event:
-            return
-        self._last_receiver_event = event
-        
-        state = event.data.get("new_state")
-        entity = event.data.get("entity_id")
-        
+    def async_update_from_state(self, entity_id: str, state: State | None) -> None:
+        """ Update calculator state from a source entity's current state. """
         if (
             state is None
             or state.state is None
@@ -167,7 +183,7 @@ class MoldRiskCalculator:
                 )
                 new_state = None
 
-        if entity == self._temp_entity_id:
+        if entity_id == self._temp_entity_id:
             if new_state is not None:
                 unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
                 new_state = self._coerce_temperature_to_celsius(
@@ -178,11 +194,11 @@ class MoldRiskCalculator:
             self.temperature = new_state
             self._calc_limit()
             self._calc_risk()
-        
-        if entity == self._hum_entity_id:
-            if not new_state is None and new_state > 100:
+
+        if entity_id == self._hum_entity_id:
+            if new_state is not None and new_state > 100:
                 new_state = 100
-            if not new_state is None and  new_state < 0:
+            if new_state is not None and new_state < 0:
                 new_state = 0
             if new_state == self.humidity:
                 return
@@ -265,8 +281,6 @@ class MoldRiskLimitSensor(MoldRiskBaseSensor):
     _attr_icon = "mdi:water-percent-alert"
     _attr_native_unit_of_measurement = PERCENTAGE
 
-    _limit: int | None = None
-
     def __init__(
         self,
         hum_entity_id: str,
@@ -280,24 +294,11 @@ class MoldRiskLimitSensor(MoldRiskBaseSensor):
         super().__init__(hum_entity_id, temp_entity_id, name, entry_id, mold_calc)
         self._level = level
         self._attr_name = f"Level {level} Limit"
-
-    async def async_added_to_hass(self) -> None:
-        """ Handle added to Hass. """
-        state = self.hass.states.get(self._temp_entity_id)
-        event = Event("", {"entity_id": self._temp_entity_id, "new_state": state})
-        self._async_state_listener(event)
-
-        entity_ids = [self._temp_entity_id]
-        self.async_on_remove(
-            async_track_state_change_event(
-                    self.hass, entity_ids, self._async_state_listener
-            )
-        )
+        self._limit = mold_calc.limit_for_level(level)
 
     @callback
-    def _async_state_listener(self, event: Event) -> None:
-        """ Listen for sensor state changes. """
-        self._mold_calc.async_event_receiver(event)
+    def async_refresh_from_calculator(self) -> None:
+        """ Sync from the calculator's current value; write state if changed. """
         limit = self._mold_calc.limit_for_level(self._level)
         if limit != self._limit:
             self._limit = limit
@@ -322,29 +323,22 @@ class MoldRiskIndexSensor(MoldRiskBaseSensor):
     """ Representation of a mold risk index sensor. """
     _attr_icon = "mdi:alert-outline"
     _attr_name = "Current Index"
-    
-    _risk: int | None = None
 
-    async def async_added_to_hass(self) -> None:
-        """ Handle added to Hass. """
-        state = self.hass.states.get(self._hum_entity_id)
-        event = Event("", {"entity_id": self._hum_entity_id, "new_state": state})
-        self._async_state_listener(event)
-        state = self.hass.states.get(self._temp_entity_id)
-        event = Event("", {"entity_id": self._temp_entity_id, "new_state": state})
-        self._async_state_listener(event)
-        
-        entity_ids = [self._hum_entity_id, self._temp_entity_id]
-        self.async_on_remove(
-            async_track_state_change_event(
-                    self.hass, entity_ids, self._async_state_listener
-            )
-        )
-    
+    def __init__(
+        self,
+        hum_entity_id: str,
+        temp_entity_id: str,
+        name: str,
+        entry_id: str,
+        mold_calc: MoldRiskCalculator,
+    ) -> None:
+        """ Initialize the index sensor. """
+        super().__init__(hum_entity_id, temp_entity_id, name, entry_id, mold_calc)
+        self._risk = mold_calc.risk
+
     @callback
-    def _async_state_listener(self, event: Event) -> None:
-        """ Listen for sensor state changes. """
-        self._mold_calc.async_event_receiver(event)
+    def async_refresh_from_calculator(self) -> None:
+        """ Sync from the calculator's current value; write state if changed. """
         if self._mold_calc.risk != self._risk:
             self._risk = self._mold_calc.risk
             self.async_write_ha_state()

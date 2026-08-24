@@ -1,3 +1,7 @@
+# 1.2.1 (2026-08-24)
+
+Internal rewrite of how the Limit and Current Index sensors listen for source sensor updates: each entity used to register its own listener on the temperature/humidity sensors, so a config entry ended up with 4 separate listeners fanning into a shared calculator that deduplicated redundant recalculation by comparing state-change event object identity - a behavior that worked but wasn't guaranteed, and didn't cover entity setup at all. As a result, the "unsupported temperature unit" warning could log up to 4 times on every Home Assistant startup or reload for a single misconfigured sensor. Now a config entry registers exactly one listener per source sensor, updates a shared calculator once, and only writes state for the entities whose value actually changed. No change in entity IDs, names, or reported values.
+
 # 1.2.0 (2026-08-24)
 
 Split the `Limit` sensor into three entities, one per risk level: `Level 1 Limit`, `Level 2 Limit`, and `Level 3 Limit`, each reporting the humidity threshold for that level at the current temperature. Previously only level 1 was a real entity; levels 2 and 3 were only available as attributes on the `Limit` sensor, which meant they couldn't be graphed, tracked in statistics, or used directly in a `state` trigger. The old `Limit` sensor's entity ID is preserved as `Level 1 Limit`, so existing automations referencing it keep working. Also renamed the `Risk Index` sensor to `Current Index` for clarity now that there are multiple level-related entities.
