@@ -1,16 +1,16 @@
-""" Risk of mold growth at present temperature and humidity. """
+"""Risk of mold growth at present temperature and humidity."""
+
 from __future__ import annotations
 
-from math import exp
 import logging
+from math import exp
 
 from homeassistant.components.sensor import (
-    SensorEntity,
     SensorDeviceClass,
+    SensorEntity,
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.const import (
     ATTR_UNIT_OF_MEASUREMENT,
     PERCENTAGE,
@@ -18,6 +18,7 @@ from homeassistant.const import (
     STATE_UNKNOWN,
     UnitOfTemperature,
 )
+from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -32,14 +33,15 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """ Initialize mold risk index config entry. """
+    """Initialize mold risk index config entry."""
     registry = er.async_get(hass)
-    
+
     hum_entity_id = er.async_validate_entity_id(
         registry, config_entry.options[CONF_HUM_ID]
     )
@@ -72,7 +74,7 @@ async def async_setup_entry(
 
     @callback
     def _async_source_changed(event: Event) -> None:
-        """ Update the shared calculator once, then refresh affected entities. """
+        """Update the shared calculator once, then refresh affected entities."""
         entity_id = event.data["entity_id"]
         mold_calc.async_update_from_state(entity_id, event.data["new_state"])
         # Level N Limit is a pure function of temperature alone (humidity
@@ -94,16 +96,7 @@ async def async_setup_entry(
 
 
 class MoldRiskCalculator:
-    """ Calculate the limits and risk of mold growth. """
-    def __init__(self, hum_entity_id: str, temp_entity_id: str):
-        """ Initialize the calculator. """
-        self._hum_entity_id = hum_entity_id
-        self._temp_entity_id = temp_entity_id
-
-        self.humidity: float | None = None
-        self.temperature: float | None = None
-        self.risk: int | None = None
-        self.humidity_limits: dict[int, int | None] = {1: None, 2: None, 3: None}
+    """Calculate the limits and risk of mold growth."""
 
     # Per risk level: (scale, decay, base, floor) for
     # scale * exp(-temp * decay) + base, clamped to [floor, 100].
@@ -113,45 +106,19 @@ class MoldRiskCalculator:
         3: (15, 0.10, 85, 84),
     }
 
-    @staticmethod
-    def calc_limit(level: int, temp: float | int) -> int:
-        """ Calculate the humidity limit for a risk level (1-3) at a given temperature. """
-        if not 0 <= temp <= 50:
-            return 100
-        scale, decay, base, floor = MoldRiskCalculator._LIMIT_PARAMS[level]
-        return max(min(100, round(scale * exp(-temp * decay) + base)), floor)
+    def __init__(self, hum_entity_id: str, temp_entity_id: str):
+        """Initialize the calculator."""
+        self._hum_entity_id = hum_entity_id
+        self._temp_entity_id = temp_entity_id
 
-    @staticmethod
-    def _coerce_temperature_to_celsius(
-        value: float, unit: str | None, entity_id: str
-    ) -> float | None:
-        """Convert a raw temperature reading to Celsius.
-
-        The risk formula in calc_limit is calibrated for Celsius input,
-        so everything downstream of this function assumes Celsius.
-        This is the only place in the integration that should read a
-        temperature entity's unit_of_measurement -- if another input path
-        for temperature is ever added, route it through here too.
-
-        Returns None (after logging a warning) if the unit is missing or
-        not one Home Assistant recognizes as a temperature unit, rather
-        than guessing and risking a silently wrong calculation.
-        """
-        if unit not in TemperatureConverter.VALID_UNITS:
-            _LOGGER.warning(
-                "Temperature sensor %s reported without a supported "
-                "unit (got %s); expected one of %s. Ignoring this "
-                "reading",
-                entity_id,
-                unit,
-                sorted(TemperatureConverter.VALID_UNITS),
-            )
-            return None
-        return TemperatureConverter.convert(value, unit, UnitOfTemperature.CELSIUS)
+        self.humidity: float | None = None
+        self.temperature: float | None = None
+        self.risk: int | None = None
+        self.humidity_limits: dict[int, int | None] = {1: None, 2: None, 3: None}
 
     @callback
     def async_update_from_state(self, entity_id: str, state: State | None) -> None:
-        """ Update calculator state from a source entity's current state. """
+        """Update calculator state from a source entity's current state."""
         if (
             state is None
             or state.state is None
@@ -202,9 +169,13 @@ class MoldRiskCalculator:
             self.humidity = new_state
             self._calc_risk()
 
+    def limit_for_level(self, level: int) -> int | None:
+        """Return the calculated humidity limit for a risk level (1-3)."""
+        return self.humidity_limits.get(level)
+
     @callback
     def _calc_limit(self) -> None:
-        """ Calculate limits. """
+        """Calculate limits."""
         # Without temperature no calculations can be done
         if self.temperature is None:
             self.humidity_limits = {level: None for level in self._LIMIT_PARAMS}
@@ -215,13 +186,9 @@ class MoldRiskCalculator:
             for level in self._LIMIT_PARAMS
         }
 
-    def limit_for_level(self, level: int) -> int | None:
-        """ Return the calculated humidity limit for a risk level (1-3). """
-        return self.humidity_limits.get(level)
-
     @callback
     def _calc_risk(self) -> None:
-        """ Calculate risk. """
+        """Calculate risk."""
         # Without temperature or humidity no calculations can be done
         if self.humidity is None or self.temperature is None:
             self.risk = None
@@ -239,31 +206,63 @@ class MoldRiskCalculator:
         else:
             self.risk = 0
 
+    @staticmethod
+    def calc_limit(level: int, temp: float | int) -> int:
+        """Calculate the humidity limit for a risk level (1-3) at a temperature."""
+        if not 0 <= temp <= 50:
+            return 100
+        scale, decay, base, floor = MoldRiskCalculator._LIMIT_PARAMS[level]
+        return max(min(100, round(scale * exp(-temp * decay) + base)), floor)
+
+    @staticmethod
+    def _coerce_temperature_to_celsius(
+        value: float, unit: str | None, entity_id: str
+    ) -> float | None:
+        """Convert a raw temperature reading to Celsius.
+
+        The risk formula in calc_limit is calibrated for Celsius input,
+        so everything downstream of this function assumes Celsius.
+        This is the only place in the integration that should read a
+        temperature entity's unit_of_measurement -- if another input path
+        for temperature is ever added, route it through here too.
+
+        Returns None (after logging a warning) if the unit is missing or
+        not one Home Assistant recognizes as a temperature unit, rather
+        than guessing and risking a silently wrong calculation.
+        """
+        if unit not in TemperatureConverter.VALID_UNITS:
+            _LOGGER.warning(
+                "Temperature sensor %s reported without a supported "
+                "unit (got %s); expected one of %s. Ignoring this "
+                "reading",
+                entity_id,
+                unit,
+                sorted(TemperatureConverter.VALID_UNITS),
+            )
+            return None
+        return TemperatureConverter.convert(value, unit, UnitOfTemperature.CELSIUS)
+
 
 class MoldRiskBaseSensor(SensorEntity):
-    """ Base class for mold risk index sensors. """
+    """Base class for mold risk index sensors."""
 
     _attr_has_entity_name = True
     _attr_should_poll = False
     _attr_state_class = SensorStateClass.MEASUREMENT
 
-    def __init__(
-        self,
-        name: str,
-        entry_id: str,
-        mold_calc: MoldRiskCalculator
-    ) -> None:
-        """ Initialize the base sensor. """
+    def __init__(self, name: str, entry_id: str, mold_calc: MoldRiskCalculator) -> None:
+        """Initialize the base sensor."""
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry_id)},
             name=name,
-            )
+        )
         self._entry_id = entry_id
         self._mold_calc = mold_calc
 
 
 class MoldRiskLimitSensor(MoldRiskBaseSensor):
-    """ Representation of the humidity limit sensor for one risk level. """
+    """Representation of the humidity limit sensor for one risk level."""
+
     _attr_device_class = SensorDeviceClass.HUMIDITY
     _attr_icon = "mdi:water-percent-alert"
     _attr_native_unit_of_measurement = PERCENTAGE
@@ -275,7 +274,7 @@ class MoldRiskLimitSensor(MoldRiskBaseSensor):
         mold_calc: MoldRiskCalculator,
         level: int,
     ) -> None:
-        """ Initialize the limit sensor for one risk level. """
+        """Initialize the limit sensor for one risk level."""
         super().__init__(name, entry_id, mold_calc)
         self._level = level
         self._attr_name = f"Level {level} Limit"
@@ -283,7 +282,7 @@ class MoldRiskLimitSensor(MoldRiskBaseSensor):
 
     @callback
     def async_refresh_from_calculator(self) -> None:
-        """ Sync from the calculator's current value; write state if changed. """
+        """Sync from the calculator's current value; write state if changed."""
         limit = self._mold_calc.limit_for_level(self._level)
         if limit != self._limit:
             self._limit = limit
@@ -291,7 +290,7 @@ class MoldRiskLimitSensor(MoldRiskBaseSensor):
 
     @property
     def native_value(self) -> int | None:
-        """ Return the state of the sensor. """
+        """Return the state of the sensor."""
         return self._limit
 
     @property
@@ -305,7 +304,8 @@ class MoldRiskLimitSensor(MoldRiskBaseSensor):
 
 
 class MoldRiskIndexSensor(MoldRiskBaseSensor):
-    """ Representation of a mold risk index sensor. """
+    """Representation of a mold risk index sensor."""
+
     _attr_icon = "mdi:alert-outline"
     _attr_name = "Current Index"
 
@@ -315,20 +315,20 @@ class MoldRiskIndexSensor(MoldRiskBaseSensor):
         entry_id: str,
         mold_calc: MoldRiskCalculator,
     ) -> None:
-        """ Initialize the index sensor. """
+        """Initialize the index sensor."""
         super().__init__(name, entry_id, mold_calc)
         self._risk = mold_calc.risk
 
     @callback
     def async_refresh_from_calculator(self) -> None:
-        """ Sync from the calculator's current value; write state if changed. """
+        """Sync from the calculator's current value; write state if changed."""
         if self._mold_calc.risk != self._risk:
             self._risk = self._mold_calc.risk
             self.async_write_ha_state()
-    
+
     @property
     def native_value(self) -> int | None:
-        """ Return the state of the sensor. """
+        """Return the state of the sensor."""
         return self._risk
 
     @property

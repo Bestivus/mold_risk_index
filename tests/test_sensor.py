@@ -6,6 +6,7 @@ logic (formula correctness, listener wiring, dedup/refresh behavior,
 warning messages) cheaply and without any HA dependency, but they are not
 a substitute for testing against a real Home Assistant instance.
 """
+
 import asyncio
 import math
 
@@ -83,11 +84,11 @@ def test_initial_values_match_reference_formula():
     expected_l3 = calc_limit_reference(*LIMIT_PARAMS[3], 20.0)
     expected_l2 = calc_limit_reference(*LIMIT_PARAMS[2], 20.0)
     expected_l1 = calc_limit_reference(*LIMIT_PARAMS[1], 20.0)
-    if 85 > expected_l3:
+    if expected_l3 < 85:
         expected_risk = 3
-    elif 85 > expected_l2:
+    elif expected_l2 < 85:
         expected_risk = 2
-    elif 85 > expected_l1:
+    elif expected_l1 < 85:
         expected_risk = 1
     else:
         expected_risk = 0

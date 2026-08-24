@@ -9,6 +9,7 @@ of sensor.py's HA imports are pure type annotations, which are inert at
 runtime under `from __future__ import annotations` and never touch these
 stubs at all.
 """
+
 import sys
 import types
 

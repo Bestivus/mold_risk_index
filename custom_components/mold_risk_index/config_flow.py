@@ -1,11 +1,11 @@
 """Config flow for Mold Risk Index integration."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, cast
 
 import voluptuous as vol
-
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import CONF_NAME
 from homeassistant.helpers import selector
@@ -20,7 +20,6 @@ from .const import (
     CONF_TEMP_ID,
     DOMAIN,
 )
-
 
 OPTIONS_SCHEMA = vol.Schema(
     {

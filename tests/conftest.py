@@ -2,6 +2,7 @@
 test module imports custom_components.mold_risk_index.sensor. Runs once,
 before test collection.
 """
+
 import sys
 from pathlib import Path
 
