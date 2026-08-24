@@ -66,12 +66,6 @@ The `Risk Index` sensor can be used for tracking historical data.
 - At level 2 mold will start grow in 4 to 8 weeks.
 - At level 3 mold will start grow in less than 4 weeks.
 
-## Support the work
-
-[![BuyMeCoffee][coffeebadge]][coffeelink]
-
-
-
 [hacslink]: https://hacs.xyz
 [hacsbadge]: https://img.shields.io/badge/HACS-Default-41BDF5.svg
 [licensebadge]: https://img.shields.io/badge/licens-MIT-41BDF5.svg
@@ -80,5 +74,3 @@ The `Risk Index` sensor can be used for tracking historical data.
 [mylink]: https://my.home-assistant.io/redirect/config_flow_start/?domain=mold_risk_index
 [mybadgehacs]: https://my.home-assistant.io/badges/hacs_repository.svg
 [mylinkhacs]: https://my.home-assistant.io/redirect/hacs_repository/?owner=Bestivus&repository=mold_risk_index
-[coffeelink]: https://www.buymeacoffee.com/76strixx
-[coffeebadge]: https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png
