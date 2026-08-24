@@ -4,7 +4,7 @@
 >
 > This was reported upstream in [issue #12](https://github.com/Strixx76/mold_risk_index/issues/12), but the maintainer wasn't interested in merging a fix. Rather than leave it broken, this fork exists to fix it and stay maintained independently.
 >
-> The fix detects the configured temperature sensor's `unit_of_measurement` and automatically converts Celsius, Fahrenheit, or Kelvin input to Celsius before running the calculation, with a safe fallback to the original assume-Celsius behavior if no unit is set. It was built with the help of AI (Claude, via Anthropic), and verified against live sensor data — see the [CHANGELOG](./CHANGELOG.md) for details.
+> The fix detects the configured temperature sensor's `unit_of_measurement` and automatically converts Celsius, Fahrenheit, or Kelvin input to Celsius before running the calculation. If the sensor doesn't report a recognized temperature unit, the risk sensors go to `unknown` and a warning is logged, rather than guessing and risking a wrong result. It was built with the help of AI (Claude, via Anthropic), and verified against live sensor data.
 >
 > If you're using a Celsius-native temperature sensor, this fork behaves identically to upstream.
 
