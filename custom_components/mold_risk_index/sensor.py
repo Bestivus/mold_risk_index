@@ -76,8 +76,8 @@ async def async_setup_entry(
         entity_id = event.data["entity_id"]
         mold_calc.async_update_from_state(entity_id, event.data["new_state"])
         # Level N Limit is a pure function of temperature alone (humidity
-        # never appears in calc_limit_1/2/3), so a humidity-only change
-        # cannot affect it - only Current Index depends on both.
+        # never appears in calc_limit), so a humidity-only change cannot
+        # affect it - only Current Index depends on both.
         refresh_targets = entities if entity_id == temp_entity_id else (index_entity,)
         for entity in refresh_targets:
             entity.async_refresh_from_calculator()
