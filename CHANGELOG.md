@@ -1,3 +1,12 @@
+# 1.2.3 (2026-08-24)
+
+Log warnings more helpfully, plus internal cleanup - no change to entity IDs, names, or reported values.
+
+- Humidity readings outside 0-100% now log a warning naming the sensor, what it reported, and what it was clamped to, instead of being silently absorbed.
+- The "non-numeric state" warning now names which sensor triggered it, matching the existing temperature-unit warning.
+- Removed leftover code from the recent listener rewrite (unused constructor parameters, a redundant state reset) and consolidated the last of the duplicated limit-calculation formulas.
+- Added a test suite and CI linting/formatting checks, so regressions get caught automatically going forward.
+
 # 1.2.2 (2026-08-24)
 
 ⚡ Skip redundant work on every humidity update - no behavior change.
