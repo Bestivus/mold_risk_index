@@ -187,10 +187,16 @@ class MoldRiskCalculator:
             self._calc_risk()
 
         if entity_id == self._hum_entity_id:
-            if new_state is not None and new_state > 100:
-                new_state = 100
-            if new_state is not None and new_state < 0:
-                new_state = 0
+            if new_state is not None and not 0 <= new_state <= 100:
+                clamped = max(min(new_state, 100), 0)
+                _LOGGER.warning(
+                    "Humidity sensor %s reported %s%%, outside the valid "
+                    "0-100%% range; clamping to %s%%",
+                    entity_id,
+                    new_state,
+                    clamped,
+                )
+                new_state = clamped
             if new_state == self.humidity:
                 return
             self.humidity = new_state
