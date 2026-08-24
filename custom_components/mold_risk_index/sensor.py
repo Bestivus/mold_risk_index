@@ -55,8 +55,6 @@ async def async_setup_entry(
 
     limit_entities = [
         MoldRiskLimitSensor(
-            hum_entity_id,
-            temp_entity_id,
             config_entry.title,
             config_entry.entry_id,
             mold_calc,
@@ -65,8 +63,6 @@ async def async_setup_entry(
         for level in (1, 2, 3)
     ]
     index_entity = MoldRiskIndexSensor(
-        hum_entity_id,
-        temp_entity_id,
         config_entry.title,
         config_entry.entry_id,
         mold_calc,
@@ -212,7 +208,6 @@ class MoldRiskCalculator:
         """ Calculate limits. """
         # Without temperature no calculations can be done
         if self.temperature is None:
-            self.risk = None
             self.humidity_limit_level_1 = None
             self.humidity_limit_level_2 = None
             self.humidity_limit_level_3 = None
@@ -260,8 +255,6 @@ class MoldRiskBaseSensor(SensorEntity):
 
     def __init__(
         self,
-        hum_entity_id: str,
-        temp_entity_id: str,
         name: str,
         entry_id: str,
         mold_calc: MoldRiskCalculator
@@ -272,8 +265,6 @@ class MoldRiskBaseSensor(SensorEntity):
             name=name,
             )
         self._entry_id = entry_id
-        self._hum_entity_id = hum_entity_id
-        self._temp_entity_id = temp_entity_id
         self._mold_calc = mold_calc
 
 
@@ -285,15 +276,13 @@ class MoldRiskLimitSensor(MoldRiskBaseSensor):
 
     def __init__(
         self,
-        hum_entity_id: str,
-        temp_entity_id: str,
         name: str,
         entry_id: str,
         mold_calc: MoldRiskCalculator,
         level: int,
     ) -> None:
         """ Initialize the limit sensor for one risk level. """
-        super().__init__(hum_entity_id, temp_entity_id, name, entry_id, mold_calc)
+        super().__init__(name, entry_id, mold_calc)
         self._level = level
         self._attr_name = f"Level {level} Limit"
         self._limit = mold_calc.limit_for_level(level)
@@ -328,14 +317,12 @@ class MoldRiskIndexSensor(MoldRiskBaseSensor):
 
     def __init__(
         self,
-        hum_entity_id: str,
-        temp_entity_id: str,
         name: str,
         entry_id: str,
         mold_calc: MoldRiskCalculator,
     ) -> None:
         """ Initialize the index sensor. """
-        super().__init__(hum_entity_id, temp_entity_id, name, entry_id, mold_calc)
+        super().__init__(name, entry_id, mold_calc)
         self._risk = mold_calc.risk
 
     @callback
