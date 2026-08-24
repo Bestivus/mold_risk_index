@@ -103,33 +103,23 @@ class MoldRiskCalculator:
         self.humidity: float | None = None
         self.temperature: float | None = None
         self.risk: int | None = None
-        self.humidity_limit_level_1: int | None = None
-        self.humidity_limit_level_2: int | None = None
-        self.humidity_limit_level_3: int | None = None
-    
-    def calc_limit_1(self, temp: float | int) -> int:
-        """ Calculate limit for risk level 1 """
-        if 0 <= temp <= 50:
-            limit = round(20 * exp( -temp * 0.15 ) + 73)
-            return max(min(100,limit),72)
-        else:
+        self.humidity_limits: dict[int, int | None] = {1: None, 2: None, 3: None}
+
+    # Per risk level: (scale, decay, base, floor) for
+    # scale * exp(-temp * decay) + base, clamped to [floor, 100].
+    _LIMIT_PARAMS: dict[int, tuple[float, float, int, int]] = {
+        1: (20, 0.15, 73, 72),
+        2: (17, 0.11, 80, 79),
+        3: (15, 0.10, 85, 84),
+    }
+
+    @staticmethod
+    def calc_limit(level: int, temp: float | int) -> int:
+        """ Calculate the humidity limit for a risk level (1-3) at a given temperature. """
+        if not 0 <= temp <= 50:
             return 100
-    
-    def calc_limit_2(self, temp: float | int) -> int:
-        """ Calculate limit for risk level 2 """
-        if 0 <= temp <= 50:
-            limit = round(17 * exp( -temp * 0.11 ) + 80)
-            return max(min(100,limit),79)
-        else:
-            return 100
-        
-    def calc_limit_3(self, temp: float | int) -> int:
-        """ Calculate limit for risk level 3 """
-        if 0 <= temp <= 50:
-            limit = round(15 * exp( -temp * 0.10 ) + 85)
-            return max(min(100,limit),84)
-        else:
-            return 100
+        scale, decay, base, floor = MoldRiskCalculator._LIMIT_PARAMS[level]
+        return max(min(100, round(scale * exp(-temp * decay) + base)), floor)
 
     @staticmethod
     def _coerce_temperature_to_celsius(
@@ -137,8 +127,8 @@ class MoldRiskCalculator:
     ) -> float | None:
         """Convert a raw temperature reading to Celsius.
 
-        The risk formulas in calc_limit_1/2/3 are calibrated for Celsius
-        input, so everything downstream of this function assumes Celsius.
+        The risk formula in calc_limit is calibrated for Celsius input,
+        so everything downstream of this function assumes Celsius.
         This is the only place in the integration that should read a
         temperature entity's unit_of_measurement -- if another input path
         for temperature is ever added, route it through here too.
@@ -211,22 +201,17 @@ class MoldRiskCalculator:
         """ Calculate limits. """
         # Without temperature no calculations can be done
         if self.temperature is None:
-            self.humidity_limit_level_1 = None
-            self.humidity_limit_level_2 = None
-            self.humidity_limit_level_3 = None
+            self.humidity_limits = {level: None for level in self._LIMIT_PARAMS}
             return
 
-        self.humidity_limit_level_1 = self.calc_limit_1(self.temperature)
-        self.humidity_limit_level_2 = self.calc_limit_2(self.temperature)
-        self.humidity_limit_level_3 = self.calc_limit_3(self.temperature)
+        self.humidity_limits = {
+            level: self.calc_limit(level, self.temperature)
+            for level in self._LIMIT_PARAMS
+        }
 
     def limit_for_level(self, level: int) -> int | None:
         """ Return the calculated humidity limit for a risk level (1-3). """
-        return {
-            1: self.humidity_limit_level_1,
-            2: self.humidity_limit_level_2,
-            3: self.humidity_limit_level_3,
-        }[level]
+        return self.humidity_limits.get(level)
 
     @callback
     def _calc_risk(self) -> None:
@@ -236,13 +221,13 @@ class MoldRiskCalculator:
             self.risk = None
             return
 
-        if self.humidity > self.humidity_limit_level_3:
+        if self.humidity > self.humidity_limits[3]:
             # Mold will start grow in less than 4 weeks
             self.risk = 3
-        elif self.humidity > self.humidity_limit_level_2:
+        elif self.humidity > self.humidity_limits[2]:
             # Mold will start grow in 4 to 8 weeks
             self.risk = 2
-        elif self.humidity > self.humidity_limit_level_1:
+        elif self.humidity > self.humidity_limits[1]:
             # Mold will start after 8 weeks or more
             self.risk = 1
         else:
