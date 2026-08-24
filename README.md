@@ -25,7 +25,7 @@ The formulas for the "Mold Risk Index” is inspired by a forum thread in a Swed
 The risk of mold according to these formulas looks like this:
 ![Graph](/plot.png)
 
-> **Temperature units:** the risk formulas are calibrated for Celsius. Your configured temperature sensor can report in Celsius, Fahrenheit, or Kelvin — the integration converts automatically based on the sensor's own `unit_of_measurement`. If your sensor doesn't report a unit at all, its value is assumed to already be Celsius.
+> **Temperature units:** the risk formulas are calibrated for Celsius. Your configured temperature sensor can report in Celsius, Fahrenheit, or Kelvin — the integration converts automatically based on the sensor's own `unit_of_measurement`. If your sensor doesn't report a recognized temperature unit, the risk sensors go to `unknown` and a warning is logged, rather than guessing the unit and risking a wrong result.
 
 ## Installation
 

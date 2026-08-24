@@ -108,6 +108,34 @@ class MoldRiskCalculator:
         else:
             return 100
 
+    @staticmethod
+    def _coerce_temperature_to_celsius(
+        value: float, unit: str | None, entity_id: str
+    ) -> float | None:
+        """Convert a raw temperature reading to Celsius.
+
+        The risk formulas in calc_limit_1/2/3 are calibrated for Celsius
+        input, so everything downstream of this function assumes Celsius.
+        This is the only place in the integration that should read a
+        temperature entity's unit_of_measurement -- if another input path
+        for temperature is ever added, route it through here too.
+
+        Returns None (after logging a warning) if the unit is missing or
+        not one Home Assistant recognizes as a temperature unit, rather
+        than guessing and risking a silently wrong calculation.
+        """
+        if unit not in TemperatureConverter.VALID_UNITS:
+            _LOGGER.warning(
+                "Temperature sensor %s reported without a supported "
+                "unit (got %s); expected one of %s. Ignoring this "
+                "reading",
+                entity_id,
+                unit,
+                sorted(TemperatureConverter.VALID_UNITS),
+            )
+            return None
+        return TemperatureConverter.convert(value, unit, UnitOfTemperature.CELSIUS)
+
     @callback
     def async_event_receiver(self, event: Event,) -> None:
         """ Receives events about state changes. """
@@ -140,17 +168,9 @@ class MoldRiskCalculator:
         if entity == self._temp_entity_id:
             if new_state is not None:
                 unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
-                # Formulas below are calibrated for Celsius input. Convert
-                # any other unit HA recognizes for temperature; if no unit
-                # is set (or it's unrecognized), fall back to treating the
-                # value as already being Celsius, preserving prior behavior.
-                if (
-                    unit in TemperatureConverter.VALID_UNITS
-                    and unit != UnitOfTemperature.CELSIUS
-                ):
-                    new_state = TemperatureConverter.convert(
-                        new_state, unit, UnitOfTemperature.CELSIUS
-                    )
+                new_state = self._coerce_temperature_to_celsius(
+                    new_state, unit, self._temp_entity_id
+                )
             if new_state == self.temperature:
                 return
             self.temperature = new_state

@@ -1,3 +1,7 @@
+# 1.1.2 (2026-08-24)
+
+Require a recognized temperature unit (Celsius, Fahrenheit, or Kelvin) on the configured temperature sensor. Previously, a sensor with no unit set was silently assumed to already be Celsius; that assumption could itself produce a wrong risk calculation if the sensor was actually reporting Fahrenheit or Kelvin without declaring it. The risk sensors now go to `unknown` and log a warning in that case, rather than guessing.
+
 # 1.1.1 (2026-08-21)
 
 Fix incorrect risk calculation when the configured temperature sensor does not report in Celsius. The risk formulas are calibrated for Celsius input; Fahrenheit and Kelvin values are now converted automatically based on the sensor's `unit_of_measurement`, with a safe fallback to prior (assume-Celsius) behavior when no unit is set. [#12](https://github.com/Strixx76/mold_risk_index/issues/12)
