@@ -1,0 +1,43 @@
+name: Cut Beta Prerelease
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  beta-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: beta
+          fetch-depth: 0
+
+      - name: Tag a standalone beta build and cut a prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          base_version=$(jq -r .version custom_components/mold_risk_index/manifest.json)
+          IFS='.' read -r major minor patch <<< "$base_version"
+          beta_version="${major}.${minor}.$((patch + 1))-beta.${{ github.run_number }}"
+          beta_sha=$(git rev-parse --short HEAD)
+
+          # Bump the version only in this standalone commit, tagged and
+          # pushed on its own - never merged back into the beta branch, so
+          # beta's manifest.json stays frozen as normal.
+          jq --arg v "$beta_version" '.version = $v' \
+            custom_components/mold_risk_index/manifest.json > /tmp/manifest.json
+          mv /tmp/manifest.json custom_components/mold_risk_index/manifest.json
+          git commit -am "Beta build ${beta_version}"
+          git tag "$beta_version"
+          git push origin "$beta_version"
+
+          gh release create "$beta_version" \
+            --title "$beta_version" \
+            --prerelease \
+            --notes "Beta build from the beta branch at ${beta_sha}. Internal testing only - not a stable release, may change or disappear without notice."
