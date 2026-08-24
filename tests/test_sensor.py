@@ -13,7 +13,7 @@ import math
 # conftest.py installs the HA stubs before this module is collected.
 from homeassistant.core import Event, HomeAssistant, State  # noqa: E402
 
-from custom_components.mold_risk_index import sensor as mod  # noqa: E402
+from custom_components.mold_risk_index import sensor  # noqa: E402
 
 
 class FakeConfigEntry:
@@ -44,7 +44,7 @@ def build(
         {"humidity_entity_id": "sensor.hum", "temperature_entity_id": "sensor.temp"},
     )
     added = []
-    asyncio.run(mod.async_setup_entry(hass, entry, added.extend))
+    asyncio.run(sensor.async_setup_entry(hass, entry, added.extend))
     for entity in added:
         entity.hass = hass
     return hass, entry, {e._attr_name: e for e in added}
@@ -77,18 +77,18 @@ def fire_state_change(hass, entity_id, new_value, attributes=None):
 def test_initial_values_match_reference_formula():
     _, _, by_name = build(temp_state=("20", {"unit_of_measurement": "°C"}))
 
-    for level, params in LIMIT_PARAMS.items():
-        expected = calc_limit_reference(*params, 20.0)
+    expected_limits = {
+        level: calc_limit_reference(*params, 20.0)
+        for level, params in LIMIT_PARAMS.items()
+    }
+    for level, expected in expected_limits.items():
         assert by_name[f"Level {level} Limit"].native_value == expected
 
-    expected_l3 = calc_limit_reference(*LIMIT_PARAMS[3], 20.0)
-    expected_l2 = calc_limit_reference(*LIMIT_PARAMS[2], 20.0)
-    expected_l1 = calc_limit_reference(*LIMIT_PARAMS[1], 20.0)
-    if expected_l3 < 85:
+    if expected_limits[3] < 85:
         expected_risk = 3
-    elif expected_l2 < 85:
+    elif expected_limits[2] < 85:
         expected_risk = 2
-    elif expected_l1 < 85:
+    elif expected_limits[1] < 85:
         expected_risk = 1
     else:
         expected_risk = 0
@@ -144,6 +144,9 @@ def test_humidity_only_change_skips_limit_sensor_refresh_entirely():
     for name, entity in by_name.items():
         original = entity.async_refresh_from_calculator
 
+        # Default args bind each loop iteration's own original/name now,
+        # rather than all four wrappers sharing the loop variables' final
+        # values (the classic late-binding closure pitfall).
         def wrapper(original=original, name=name):
             call_counts[name] += 1
             return original()
@@ -209,6 +212,6 @@ def test_calc_limit_matches_reference_formula_across_full_domain():
     while temp <= 70.0:
         for level, params in LIMIT_PARAMS.items():
             expected = calc_limit_reference(*params, temp)
-            actual = mod.MoldRiskCalculator.calc_limit(level, temp)
+            actual = sensor.MoldRiskCalculator.calc_limit(level, temp)
             assert actual == expected, (level, temp, expected, actual)
         temp = round(temp + 0.5, 1)

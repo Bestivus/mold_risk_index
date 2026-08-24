@@ -62,9 +62,9 @@ Use the `Level 1/2/3 Limit` sensors to set the level on a dehumidifier, or compa
 
 The `Current Index` sensor reports the current risk level and can be used for tracking historical data.
 
-- At level 1 mold will start grow after 8 weeks or more.
-- At level 2 mold will start grow in 4 to 8 weeks.
-- At level 3 mold will start grow in less than 4 weeks.
+- At level 1 mold will start to grow after 8 weeks or more.
+- At level 2 mold will start to grow in 4 to 8 weeks.
+- At level 3 mold will start to grow in less than 4 weeks.
 
 [hacslink]: https://hacs.xyz
 [hacsbadge]: https://img.shields.io/badge/HACS-Default-41BDF5.svg

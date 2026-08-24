@@ -80,7 +80,7 @@ async def async_setup_entry(
         # Level N Limit is a pure function of temperature alone (humidity
         # never appears in calc_limit), so a humidity-only change cannot
         # affect it - only Current Index depends on both.
-        refresh_targets = entities if entity_id == temp_entity_id else (index_entity,)
+        refresh_targets = entities if entity_id == temp_entity_id else [index_entity]
         for entity in refresh_targets:
             entity.async_refresh_from_calculator()
 
@@ -119,15 +119,7 @@ class MoldRiskCalculator:
     @callback
     def async_update_from_state(self, entity_id: str, state: State | None) -> None:
         """Update calculator state from a source entity's current state."""
-        if (
-            state is None
-            or state.state is None
-            or state.state
-            in [
-                STATE_UNKNOWN,
-                STATE_UNAVAILABLE,
-            ]
-        ):
+        if state is None or state.state in (None, STATE_UNKNOWN, STATE_UNAVAILABLE):
             new_state = None
         else:
             try:
@@ -195,10 +187,10 @@ class MoldRiskCalculator:
             return
 
         if self.humidity > self.humidity_limits[3]:
-            # Mold will start grow in less than 4 weeks
+            # Mold will start to grow in less than 4 weeks
             self.risk = 3
         elif self.humidity > self.humidity_limits[2]:
-            # Mold will start grow in 4 to 8 weeks
+            # Mold will start to grow in 4 to 8 weeks
             self.risk = 2
         elif self.humidity > self.humidity_limits[1]:
             # Mold will start after 8 weeks or more
