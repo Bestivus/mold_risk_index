@@ -13,6 +13,20 @@
 [![HACS][hacsbadge]][hacslink]
 [![Licens][licensebadge]][licenslink]
 
+## Migrating from the upstream integration
+
+If you're already using the upstream `Strixx76/mold_risk_index` integration and want to switch to this fork, **no data will be lost**. This fork kept the same integration domain and the same entity identifiers as upstream, so your configured sensors, their history, and any automations built on them are unaffected by the swap - only the underlying code changes.
+
+1. **Back up first.** Standard precaution before changing any integration's source, even when no data loss is expected (Settings → System → Backups).
+2. **Remove the upstream repository from HACS.** Find "Mold Risk Index" in HACS, open it, and use the three-dot menu to remove it. This only removes the tracked code files - it does not touch your configured sensors or their history, which live in Home Assistant's own storage, not HACS's.
+3. **Add this fork as a custom repository.** In HACS, use the three-dot menu (top right of the Integrations list) → Custom repositories, and add `https://github.com/Bestivus/mold_risk_index` as an Integration.
+4. **Install it** from HACS the same way you would any integration.
+5. **Restart Home Assistant.**
+
+Your existing configured sensors pick right back up under the new code - same entity IDs, same history, same automations. Nothing to reconfigure.
+
+> If you're setting this up fresh, with no existing installation of the upstream integration, skip this section and follow the [Installation](#installation) instructions below.
+
 ## Features
 
 Calculate the risk of mold in a not heated confined space, like an unventilated [crawl space](https://en.wikipedia.org/wiki/Crawl_space), only taking the temperature and humidity in count.
