@@ -1,3 +1,10 @@
+# 1.2.4 (2026-08-24)
+
+Small polish - no change to entity IDs or reported values.
+
+- Dropped "sensor" from the integration's display title (Settings > Devices & Services), so it reads "Mold Risk Index" - matching manifest.json's name, which already omitted it.
+- Added step-by-step README instructions for migrating from the upstream integration to this fork, confirmed to preserve entity IDs and history.
+
 # 1.2.3 (2026-08-24)
 
 Log warnings more helpfully, plus internal cleanup - no change to entity IDs, names, or reported values.
