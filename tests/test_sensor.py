@@ -8,7 +8,9 @@ a substitute for testing against a real Home Assistant instance.
 """
 
 import asyncio
+import json
 import math
+from pathlib import Path
 
 # conftest.py installs the HA stubs before this module is collected.
 from homeassistant.core import Event, HomeAssistant, State  # noqa: E402
@@ -255,6 +257,30 @@ def test_current_index_is_an_enum_sensor():
     assert index._attr_device_class == sensor.SensorDeviceClass.ENUM
     assert index._attr_options == ["no_risk", "low", "medium", "high"]
     assert index.native_value in index._attr_options
+
+
+def test_current_index_has_no_static_icon_so_icons_json_can_drive_it():
+    # A static _attr_icon would always win over icons.json's per-state
+    # icons, so Current Index must not set one; Level N Limit's icon
+    # doesn't vary with state, so it keeps a static one.
+    _, _, by_name = build()
+    assert getattr(by_name["Current Index"], "_attr_icon", None) is None
+    assert by_name["Level 1 Limit"]._attr_icon == "mdi:water-percent-alert"
+
+
+def test_icons_json_covers_every_current_index_option():
+    icons_path = (
+        Path(__file__).resolve().parent.parent
+        / "custom_components"
+        / "mold_risk_index"
+        / "icons.json"
+    )
+    icons = json.loads(icons_path.read_text())
+
+    state_icons = icons["entity"]["sensor"]["current_index"]["state"]
+    assert set(state_icons) == set(sensor.MoldRiskIndexSensor._RISK_OPTIONS.values())
+    assert all(icon.startswith("mdi:") for icon in state_icons.values())
+    assert icons["entity"]["sensor"]["current_index"]["default"].startswith("mdi:")
 
 
 def test_calc_limit_matches_reference_formula_across_full_domain():

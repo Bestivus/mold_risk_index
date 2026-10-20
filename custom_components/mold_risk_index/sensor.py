@@ -309,10 +309,11 @@ class MoldRiskLimitSensor(MoldRiskBaseSensor):
 class MoldRiskIndexSensor(MoldRiskBaseSensor):
     """Representation of a mold risk index sensor."""
 
-    _attr_icon = "mdi:alert-outline"
     _attr_name = "Current Index"
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_translation_key = "current_index"
+    # Icon per state comes from icons.json (keyed on translation_key above),
+    # not a static _attr_icon, so the icon reflects the current risk level.
 
     # Risk level (from MoldRiskCalculator.risk) to this sensor's reported
     # enum option. Kept as a level->option mapping, rather than switching
