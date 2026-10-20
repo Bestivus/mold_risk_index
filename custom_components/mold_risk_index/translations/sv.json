@@ -22,17 +22,5 @@
           }
         }
       }
-    },
-    "entity": {
-      "sensor": {
-        "current_index": {
-          "state": {
-            "no_risk": "Ingen risk",
-            "low": "Låg",
-            "medium": "Medel",
-            "high": "Hög"
-          }
-        }
-      }
     }
   }

@@ -8,9 +8,7 @@ a substitute for testing against a real Home Assistant instance.
 """
 
 import asyncio
-import json
 import math
-from pathlib import Path
 
 # conftest.py installs the HA stubs before this module is collected.
 from homeassistant.core import Event, HomeAssistant, State  # noqa: E402
@@ -94,8 +92,7 @@ def test_initial_values_match_reference_formula():
         expected_risk = 1
     else:
         expected_risk = 0
-    expected_option = sensor.MoldRiskIndexSensor._RISK_OPTIONS[expected_risk]
-    assert by_name["Current Index"].native_value == expected_option
+    assert by_name["Current Index"].native_value == expected_risk
 
 
 def test_unique_id_continuity():
@@ -197,7 +194,7 @@ def test_humidity_out_of_range_is_clamped_and_logged(caplog):
 
     # 142% should behave identically to an actual 100% reading (clamped),
     # which at the default 20C fixture is above all three limits (74/82/87).
-    assert by_name["Current Index"].native_value == "high"
+    assert by_name["Current Index"].native_value == 3
 
 
 def test_unload_removes_the_listener():
@@ -216,71 +213,37 @@ def test_risk_has_hysteresis_around_a_limit():
     hass, _, by_name = build(
         temp_state=("20", {"unit_of_measurement": "°C"}), hum_state=("70", {})
     )
-    assert by_name["Current Index"].native_value == "no_risk"
+    assert by_name["Current Index"].native_value == 0
 
     # Crossing the raw limit (74) but staying inside the margin doesn't flip.
     fire_state_change(hass, "sensor.hum", "75")
-    assert by_name["Current Index"].native_value == "no_risk"
+    assert by_name["Current Index"].native_value == 0
 
     # Clearing limit + margin (76) does.
     fire_state_change(hass, "sensor.hum", "77")
-    assert by_name["Current Index"].native_value == "low"
+    assert by_name["Current Index"].native_value == 1
 
     # Dropping back below the raw limit but staying inside the margin
     # doesn't flip back.
     fire_state_change(hass, "sensor.hum", "73")
-    assert by_name["Current Index"].native_value == "low"
+    assert by_name["Current Index"].native_value == 1
 
     # Dropping below limit - margin (72) does.
     fire_state_change(hass, "sensor.hum", "71")
-    assert by_name["Current Index"].native_value == "no_risk"
+    assert by_name["Current Index"].native_value == 0
 
 
-def test_only_limit_sensors_declare_measurement_state_class():
+def test_all_sensors_declare_measurement_state_class():
+    # Including Current Index: it's an ordinal tier (0-3), not a true
+    # continuous measurement, but keeping state_class: measurement here
+    # preserves every existing install's long-term statistics for it.
+    # device_class: enum (which would read more clearly) isn't an option
+    # without dropping state_class entirely - HA doesn't allow both on the
+    # same entity, and dropping it would delete that accumulated history.
     _, _, by_name = build()
 
-    for level in (1, 2, 3):
-        assert (
-            by_name[f"Level {level} Limit"]._attr_state_class
-            == sensor.SensorStateClass.MEASUREMENT
-        )
-
-    # Current Index is an ordinal risk tier (0-3), not a measured quantity,
-    # so it shouldn't get HA's mean/min/max long-term statistics.
-    assert getattr(by_name["Current Index"], "_attr_state_class", None) is None
-
-
-def test_current_index_is_an_enum_sensor():
-    _, _, by_name = build()
-    index = by_name["Current Index"]
-
-    assert index._attr_device_class == sensor.SensorDeviceClass.ENUM
-    assert index._attr_options == ["no_risk", "low", "medium", "high"]
-    assert index.native_value in index._attr_options
-
-
-def test_current_index_has_no_static_icon_so_icons_json_can_drive_it():
-    # A static _attr_icon would always win over icons.json's per-state
-    # icons, so Current Index must not set one; Level N Limit's icon
-    # doesn't vary with state, so it keeps a static one.
-    _, _, by_name = build()
-    assert getattr(by_name["Current Index"], "_attr_icon", None) is None
-    assert by_name["Level 1 Limit"]._attr_icon == "mdi:water-percent-alert"
-
-
-def test_icons_json_covers_every_current_index_option():
-    icons_path = (
-        Path(__file__).resolve().parent.parent
-        / "custom_components"
-        / "mold_risk_index"
-        / "icons.json"
-    )
-    icons = json.loads(icons_path.read_text())
-
-    state_icons = icons["entity"]["sensor"]["current_index"]["state"]
-    assert set(state_icons) == set(sensor.MoldRiskIndexSensor._RISK_OPTIONS.values())
-    assert all(icon.startswith("mdi:") for icon in state_icons.values())
-    assert icons["entity"]["sensor"]["current_index"]["default"].startswith("mdi:")
+    for name in by_name:
+        assert by_name[name]._attr_state_class == sensor.SensorStateClass.MEASUREMENT
 
 
 def test_calc_limit_matches_reference_formula_across_full_domain():

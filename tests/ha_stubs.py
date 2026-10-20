@@ -30,7 +30,6 @@ def install() -> None:
     class SensorDeviceClass:
         HUMIDITY = "humidity"
         TEMPERATURE = "temperature"
-        ENUM = "enum"
 
     class SensorStateClass:
         MEASUREMENT = "measurement"

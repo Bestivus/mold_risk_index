@@ -22,17 +22,5 @@
         }
       }
     }
-  },
-  "entity": {
-    "sensor": {
-      "current_index": {
-        "state": {
-          "no_risk": "Žiadne riziko",
-          "low": "Nízke",
-          "medium": "Stredné",
-          "high": "Vysoké"
-        }
-      }
-    }
   }
 }

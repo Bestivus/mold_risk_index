@@ -309,18 +309,14 @@ class MoldRiskLimitSensor(MoldRiskBaseSensor):
 class MoldRiskIndexSensor(MoldRiskBaseSensor):
     """Representation of a mold risk index sensor."""
 
+    _attr_icon = "mdi:alert-outline"
     _attr_name = "Current Index"
-    _attr_device_class = SensorDeviceClass.ENUM
-    _attr_translation_key = "current_index"
-    # Icon per state comes from icons.json (keyed on translation_key above),
-    # not a static _attr_icon, so the icon reflects the current risk level.
-
-    # Risk level (from MoldRiskCalculator.risk) to this sensor's reported
-    # enum option. Kept as a level->option mapping, rather than switching
-    # the calculator itself to strings, so the calculator's own hysteresis
-    # comparisons (self.risk >= level) stay plain integer comparisons.
-    _RISK_OPTIONS: dict[int, str] = {0: "no_risk", 1: "low", 2: "medium", 3: "high"}
-    _attr_options = list(_RISK_OPTIONS.values())
+    # Plain numeric measurement (not device_class: enum) so existing
+    # installs keep their long-term statistics: HA doesn't allow a
+    # state_class on an enum sensor, and dropping state_class here would
+    # delete every user's accumulated history for this entity, not just
+    # the misleading decimal means that motivated looking at this.
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(
         self,
@@ -340,11 +336,9 @@ class MoldRiskIndexSensor(MoldRiskBaseSensor):
             self.async_write_ha_state()
 
     @property
-    def native_value(self) -> str | None:
+    def native_value(self) -> int | None:
         """Return the state of the sensor."""
-        if self._risk is None:
-            return None
-        return self._RISK_OPTIONS[self._risk]
+        return self._risk
 
     @property
     def unique_id(self) -> str | None:
