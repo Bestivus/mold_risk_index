@@ -207,6 +207,46 @@ def test_unload_removes_the_listener():
     assert hass._listeners["sensor.hum"] == []
 
 
+def test_risk_has_hysteresis_around_a_limit():
+    # 20C -> Level 1 Limit is 74; _RISK_MARGIN is 2, so the enter/exit
+    # thresholds are 76 (up) and 72 (down).
+    hass, _, by_name = build(
+        temp_state=("20", {"unit_of_measurement": "°C"}), hum_state=("70", {})
+    )
+    assert by_name["Current Index"].native_value == 0
+
+    # Crossing the raw limit (74) but staying inside the margin doesn't flip.
+    fire_state_change(hass, "sensor.hum", "75")
+    assert by_name["Current Index"].native_value == 0
+
+    # Clearing limit + margin (76) does.
+    fire_state_change(hass, "sensor.hum", "77")
+    assert by_name["Current Index"].native_value == 1
+
+    # Dropping back below the raw limit but staying inside the margin
+    # doesn't flip back.
+    fire_state_change(hass, "sensor.hum", "73")
+    assert by_name["Current Index"].native_value == 1
+
+    # Dropping below limit - margin (72) does.
+    fire_state_change(hass, "sensor.hum", "71")
+    assert by_name["Current Index"].native_value == 0
+
+
+def test_only_limit_sensors_declare_measurement_state_class():
+    _, _, by_name = build()
+
+    for level in (1, 2, 3):
+        assert (
+            by_name[f"Level {level} Limit"]._attr_state_class
+            == sensor.SensorStateClass.MEASUREMENT
+        )
+
+    # Current Index is an ordinal risk tier (0-3), not a measured quantity,
+    # so it shouldn't get HA's mean/min/max long-term statistics.
+    assert getattr(by_name["Current Index"], "_attr_state_class", None) is None
+
+
 def test_calc_limit_matches_reference_formula_across_full_domain():
     temp = -20.0
     while temp <= 70.0:

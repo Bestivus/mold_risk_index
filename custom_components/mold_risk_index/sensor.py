@@ -106,6 +106,14 @@ class MoldRiskCalculator:
         3: (15, 0.10, 85, 84),
     }
 
+    # Hysteresis band (percentage points) around each level's limit: humidity
+    # must clear limit + _RISK_MARGIN to enter a level, and drop below
+    # limit - _RISK_MARGIN to leave it, so a reading that sits within normal
+    # humidity sensor accuracy of a limit doesn't flip the risk level back
+    # and forth. Chosen to match typical consumer humidity sensor accuracy
+    # (~2-3% RH), not tied to update frequency.
+    _RISK_MARGIN = 2
+
     def __init__(self, hum_entity_id: str, temp_entity_id: str):
         """Initialize the calculator."""
         self._hum_entity_id = hum_entity_id
@@ -180,23 +188,26 @@ class MoldRiskCalculator:
 
     @callback
     def _calc_risk(self) -> None:
-        """Calculate risk."""
+        """Calculate risk, with hysteresis so a reading that sits within
+        _RISK_MARGIN of a limit doesn't flip the level back and forth."""
         # Without temperature or humidity no calculations can be done
         if self.humidity is None or self.temperature is None:
             self.risk = None
             return
 
-        if self.humidity > self.humidity_limits[3]:
-            # Mold will start to grow in less than 4 weeks
-            self.risk = 3
-        elif self.humidity > self.humidity_limits[2]:
-            # Mold will start to grow in 4 to 8 weeks
-            self.risk = 2
-        elif self.humidity > self.humidity_limits[1]:
-            # Mold will start after 8 weeks or more
-            self.risk = 1
-        else:
-            self.risk = 0
+        new_risk = 0
+        for level in (1, 2, 3):
+            limit = self.humidity_limits[level]
+            was_at_or_above = self.risk is not None and self.risk >= level
+            if self.humidity > limit + self._RISK_MARGIN:
+                at_or_above = True
+            elif self.humidity < limit - self._RISK_MARGIN:
+                at_or_above = False
+            else:
+                at_or_above = was_at_or_above
+            if at_or_above:
+                new_risk = level
+        self.risk = new_risk
 
     @staticmethod
     def calc_limit(level: int, temp: float | int) -> int:
@@ -240,7 +251,6 @@ class MoldRiskBaseSensor(SensorEntity):
 
     _attr_has_entity_name = True
     _attr_should_poll = False
-    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, name: str, entry_id: str, mold_calc: MoldRiskCalculator) -> None:
         """Initialize the base sensor."""
@@ -258,6 +268,7 @@ class MoldRiskLimitSensor(MoldRiskBaseSensor):
     _attr_device_class = SensorDeviceClass.HUMIDITY
     _attr_icon = "mdi:water-percent-alert"
     _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(
         self,
