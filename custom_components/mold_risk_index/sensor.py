@@ -311,6 +311,15 @@ class MoldRiskIndexSensor(MoldRiskBaseSensor):
 
     _attr_icon = "mdi:alert-outline"
     _attr_name = "Current Index"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_translation_key = "current_index"
+
+    # Risk level (from MoldRiskCalculator.risk) to this sensor's reported
+    # enum option. Kept as a level->option mapping, rather than switching
+    # the calculator itself to strings, so the calculator's own hysteresis
+    # comparisons (self.risk >= level) stay plain integer comparisons.
+    _RISK_OPTIONS: dict[int, str] = {0: "no_risk", 1: "low", 2: "medium", 3: "high"}
+    _attr_options = list(_RISK_OPTIONS.values())
 
     def __init__(
         self,
@@ -330,9 +339,11 @@ class MoldRiskIndexSensor(MoldRiskBaseSensor):
             self.async_write_ha_state()
 
     @property
-    def native_value(self) -> int | None:
+    def native_value(self) -> str | None:
         """Return the state of the sensor."""
-        return self._risk
+        if self._risk is None:
+            return None
+        return self._RISK_OPTIONS[self._risk]
 
     @property
     def unique_id(self) -> str | None:

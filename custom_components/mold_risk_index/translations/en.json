@@ -22,5 +22,17 @@
         }
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "current_index": {
+        "state": {
+          "no_risk": "No risk",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      }
+    }
   }
 }
