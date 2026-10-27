@@ -1,3 +1,11 @@
+# 1.2.5 (2026-10-27)
+
+Fix `Current Index` flipping rapidly when humidity sits close to a risk-level limit.
+
+- Risk level changes now require humidity to clear a limit by 2 percentage points to enter that level, and drop 2 points below it to leave - normal humidity sensor noise near a limit no longer flips the level back and forth.
+- This also eliminates most of the odd decimal values that could show up in Long Term Statistics (an hourly average of a rapidly flipping 0-3 value). A genuine level change can still produce one decimal-valued hour right at the transition - that's expected, not a bug.
+- No change to entity IDs, names, or state_class - existing long-term statistics for `Current Index` are fully preserved.
+
 # 1.2.4 (2026-08-24)
 
 Small polish - no change to entity IDs or reported values.
