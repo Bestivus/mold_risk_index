@@ -22,5 +22,7 @@ The `Current Index` sensor reports the current risk level and can be used for tr
 - At level 2 mold will start to grow in 4 to 8 weeks.
 - At level 3 mold will start to grow in less than 4 weeks.
 
+> `Current Index` includes a small hysteresis margin (2 percentage points) around each limit, so a humidity reading that sits right at a threshold doesn't rapidly flip the risk level back and forth.
+
 [mybadge]: https://my.home-assistant.io/badges/config_flow_start.svg
 [mylink]: https://my.home-assistant.io/redirect/config_flow_start/?domain=mold_risk_index

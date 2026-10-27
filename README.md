@@ -80,6 +80,8 @@ The `Current Index` sensor reports the current risk level and can be used for tr
 - At level 2 mold will start to grow in 4 to 8 weeks.
 - At level 3 mold will start to grow in less than 4 weeks.
 
+> `Current Index` includes a small hysteresis margin (2 percentage points) around each limit, so a humidity reading that sits right at a threshold doesn't rapidly flip the risk level back and forth.
+
 [hacslink]: https://hacs.xyz
 [hacsbadge]: https://img.shields.io/badge/HACS-Default-41BDF5.svg
 [licensebadge]: https://img.shields.io/badge/licens-MIT-41BDF5.svg
